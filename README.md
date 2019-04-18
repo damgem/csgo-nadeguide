@@ -15,11 +15,11 @@ How to modify:
   You can add/modify grenades/maps by writing into the "./data.js" file.
   It needs to create a associative array "_maps" with the keys being the mapnames and the values being the mapdata
   
-  mapdata needs to consitst of an associative array containing:
-    - name: a display name for the map (optional)
+mapdata needs to consitst of an associative array containing:
+  - name: a display name for the map (optional)
             if not specified it will display the 'raw' map name, e.g. "de_dust2" instead of "Dust 2"
-    - has_lower_map: [true/false] (optional) enables the lower/upper buttons on the website
-    - pos_x, pos_y, scale, rotate, zoom: [numerical]
+  - has_lower_map: [true/false] (optional) enables the lower/upper buttons on the website
+  - pos_x, pos_y, scale, rotate, zoom: [numerical]
         Have a loot at "SteamLibrary\steamapps\common\Counter-Strike Global Offensive\csgo\resource\overviews", e.g. "de_dust2.txt" - copy those values. If you want to use a custom radar, create one with this guide: https://developer.valvesoftware.com/wiki/Creating_a_working_mini-map and paste the right values in there.
     - CTSpawn_x, CTSpawn_y, TSpawn_x, TSpawn_y, bombA_x, bombA_y, bombB_x, bombB_y: [numerical]
             These are optional and represent the percentage of the radar widht/height at which these icons should be placed
