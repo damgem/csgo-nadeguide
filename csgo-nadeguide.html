@@ -1,0 +1,738 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+<title>CS:GO Nade Guide</title>
+<meta charset="utf-8"/>
+<style>
+	th, td {
+		text-align: center; 
+		vertical-align: middle;
+	}
+	
+	.grenade_source_img img {
+		float: left;
+		position: relative;
+		width: 400;
+		height: 20;
+		float: left;
+		border: solid white 2px;
+	}
+	
+	#window {
+		width: 100%;
+		height: 100%;
+	}
+	
+	#grenade_info_overlay {
+		position: fixed;
+		display: none;
+		width: 100%;
+		height: 100%;
+		top: 0;
+		left: 0;
+		right: 0;
+		bottom: 0;
+		z-index:1;
+		background-color: rgba(0,0,0,0.5);
+		cursor: alias;
+	}
+	
+	#grenade_info {
+		position: absolute;
+		top: 3%;
+		left: 2%;
+		height: 94%;
+		width: 98%;
+		background-color: #1b2848;
+		cursor: default;
+	}
+	
+	#overlay_sidebar {
+		height: 100%;
+	}
+	
+	#grenade_sources_overview {
+		width: 100px;
+		height:100%;
+		border: 1px solid white;
+		border-spacing: 0px;
+		font-size: 15px;
+	}
+	
+	#overlay_content_container {
+		position: absolute;
+		overflow: hidden;
+		left: 100px;
+		top: 0px;
+		float: left;
+		height: 100%;
+		min-width: 0%;
+		scroll: auto;
+	}	
+	
+	#overlay_content {
+		position: relative;
+		float: left;
+		width: 100%;
+		height: 100%;
+		overflow: auto;
+		padding-right: 18px; 	<!-- hides	 scrollbar -->
+	}
+	
+	#sidebar {
+		position: absolute;
+		float: left;
+		top: 0;
+		left: 0;
+		width: 164px;
+		background: #273c53;
+		display: block;
+		padding-left: 0px;
+		padding-bottom: 10px;
+		padding-right: 0px;
+	}
+	
+	.sidebar_element {
+		padding-left: 5px;
+		bold: true;
+		font-weight: bold;
+	}
+	
+	#main {
+		position: relative;
+		float: left;
+		top: 0;
+		left: 164px;
+	}
+	
+	#radar {
+		width = 256px;
+		height = 256px;
+	}
+	
+
+</style>
+</head>
+
+
+
+<body style = "background: #1b2838">
+<div id = "window"><font color="white">
+
+	<div id = "grenade_info_overlay" onclick = "hide_grenade_info()"> <!--">"console.log('replace with \'hide_grenade_info()\'')"> -->
+		<div id = "grenade_info">
+			<div id = "overlay_sidebar";>
+				<table id = "grenade_sources_overview"></table>
+			</div>
+			<div id = "overlay_content_container">
+				<div id = "overlay_content">Hi</div>
+			</div>
+		</div>
+	</div>
+	
+	<div id = "sidebar">
+		 
+		<h1><i><b>CS:GO Nade Guide</b></i></h1>
+		
+		<span class = "sidebar_element">Map:</span>
+		<select id = "map_selector" onchange = "on_map_selector_change()"></select>
+		<br>
+		<br>
+		<input 	id = "map_upper"
+				class = "sidebar_element"
+				type = "button"
+				value = "UPPER"
+				disabled = "true"
+				onclick = "on_map_upper_pressed()">
+		<input 	id = "map_lower"
+				class = "sidebar_element"
+				type = "button"
+				value = "LOWER"
+				disabled = "true"
+				onclick = "on_map_lower_pressed()">
+		<br>
+		
+		<br>
+		<span class = "sidebar_element">Zoom:</span>
+		<span id = "zoom_display">?</span>
+		<br>
+		<input 	id = "zoom"
+				class = "sidebar_element"
+				type = "range"
+				style = "width: 97px"
+				value = "80"
+				step = "5"
+				min = "30"
+				max = "100"
+				onchange = "on_zoom_change()"
+				onload = "change_zoom(100)">
+		<br>
+		
+		<br>
+		<span class = "sidebar_element">Mouse Info:</span>
+		<br>
+		<span id = "mouse_info_display" class = "sidebar_element">?</span>
+		<br>
+		<br>
+		<span class = "sidebar_element">Mouse Position:</span>
+		<br>
+		<span id = "mouse_position_display" class = "sidebar_element">?</span>
+		<br>
+		<br>
+		<span class = "sidebar_element">Mouse Click:</span>
+		<br>
+		<span id = "click_position_display" class = "sidebar_element">?</span>
+	</div>
+	
+	<div id="main">
+		<canvas id = "radar" width = "1024px" height = "1024px"></canvas>
+	</div>
+	
+</font></div>
+
+
+<script>
+	window.onerror = function(e)
+	{
+		if("" + e == "ReferenceError: _maps is not defined"){
+			window.alert("Error in data format!\nDouble click 'data.js' in\nWindows Explorer to get\nline of error.");
+		} else {
+			window.alert(e);
+		}
+		return false;
+	}
+</script>
+<script type = "text/javascript" src = "data.js"></script>
+<script>
+	// Resources
+	res = {
+		maps: _maps,
+		highlightable_icon_names: ["smoke", "he", "flash", "molotov"],
+		icon_names: ["source", "t_spawn", "ct_spawn", "bomb_a", "bomb_b"],
+		images: {},
+		path: csgo_folder + "resource/overviews/"
+	}
+	
+	// Config
+	config = {
+		map_name:"blank_map",
+		use_lower: false,
+		zoom_factor:0.8,
+		highlighted_grenade_i: -1,
+		loaded_crucial_objects: 0,
+		num_crucial_objects: 1
+	}
+	
+	// Set num_curcial_objects
+	config.num_crucial_objects += res.icon_names.length
+	config.num_crucial_objects += 2 * res.highlightable_icon_names.length
+	for(map_name in res.maps){
+		config.num_crucial_objects += 1;
+		if(res.maps[map_name].has_lower_map){
+			config.num_crucial_objects += 1;
+		} 
+	}
+	
+	// Load Icons	
+	for(icon_i in res.icon_names){
+		icon_name = res.icon_names[icon_i];
+		res.images[icon_name] = new Image();
+		res.images[icon_name].onload = after_crucial_object_load;
+		res.images[icon_name].onerror = on_crucial_object_error;
+		res.images[icon_name].src = "icons/" + icon_name + ".png";
+	}
+	for(icon_i in res.highlightable_icon_names){
+		icon_name = res.highlightable_icon_names[icon_i];
+		res.images[icon_name] = new Image();
+		res.images[icon_name].onload = after_crucial_object_load;
+		res.images[icon_name].onerror = on_crucial_object_error;
+		res.images[icon_name].src = "icons/" + icon_name + ".png";
+		
+		icon_name += "_highlighted";
+		res.images[icon_name] = new Image();
+		res.images[icon_name].onload = after_crucial_object_load;
+		res.images[icon_name].onerror = on_crucial_object_error;
+		res.images[icon_name].src = "icons/" + icon_name + ".png";
+	}
+
+		
+	// Load Maps (Images + SelectorOption)
+	for(map_name in res.maps){
+		// add selector Option
+		var opt = document.createElement("option");
+		
+		opt.value = map_name;
+		opt.text = map_name;
+		if(res.maps[map_name].name){
+			opt.text = res.maps[map_name].name;
+		}
+	
+		document.getElementById("map_selector").appendChild(opt);
+		
+		// load image
+		img_file = res.maps[map_name].radar;
+		if(!img_file){
+			img_file = "maps/" + map_name + "_radar.png";
+		}
+		
+		res.images[map_name] = new Image();
+		res.images[map_name].onload = after_crucial_object_load;
+		res.images[map_name].onerror = on_crucial_object_error;
+		res.images[map_name].src = img_file;
+		
+		
+		if(res.maps[map_name].has_lower_map){
+			img_file = res.maps[map_name].radar_lower;
+			map_name += "_lower";
+			if(!img_file){
+				img_file = "maps/" + map_name + "_radar.png";
+			}
+			res.images[map_name] = new Image();
+			res.images[map_name].onload = after_crucial_object_load;
+			res.images[map_name].onerror = on_crucial_object_error;
+			res.images[map_name].src = img_file;
+		}
+	}
+	
+	// Define Change Functions
+	function change_map(map_name){
+		config.map_name = map_name;
+	
+		// Load Map Config
+		document.getElementById("map_upper").disabled = true;
+		document.getElementById("map_lower").disabled = !res.maps[map_name].has_lower_map;
+		config.use_lower = false;
+		
+		// Load Radar Config
+		config.pos_x = 0;
+		config.pos_y = 0;
+		config.scale = 1;
+		if(res.maps[map_name].pos_x){
+			config.pos_x = res.maps[map_name].pos_x;
+		}
+		if(res.maps[map_name].pos_y){
+			config.pos_y = res.maps[map_name].pos_y;
+		}
+		if(res.maps[map_name].scale){
+			config.scale = res.maps[map_name].scale;
+		}
+		if(res.maps[map_name].zoom){
+			config.scale *= res.maps[map_name].zoom;
+		}
+	}
+	
+	function change_zoom(zoom_factor){
+		config.zoom_factor = zoom_factor;
+		document.getElementById("radar").width = 1024 * zoom_factor;
+		document.getElementById("radar").height = 1024 * zoom_factor;
+		document.getElementById("zoom_display").innerHTML = Math.round(zoom_factor * 100) + "%";
+		draw_radar();
+	}
+	
+	// Define on action Functions
+	function on_map_selector_change(){
+		change_map(document.getElementById("map_selector").value);
+		change_zoom(config.zoom_factor);
+		draw_radar();
+	}
+	
+	function on_map_upper_pressed(){
+		config.use_lower = false;
+		
+		document.getElementById("map_upper").disabled = true;
+		document.getElementById("map_lower").disabled = false;
+
+		draw_radar();
+	}
+	
+	function on_map_lower_pressed(){
+		config.use_lower = true;
+
+		document.getElementById("map_upper").disabled = false;
+		document.getElementById("map_lower").disabled = true;
+
+		draw_radar();
+	}
+	
+	function on_zoom_change(){
+		change_zoom(document.getElementById("zoom").value/100);
+	}
+	
+	document.getElementById("grenade_info").onclick = function(e){
+		e.stopPropagation();
+	}
+	
+	document.getElementById("radar").onmousemove = function(e){
+		var rect = this.getBoundingClientRect()
+		
+		radar_x = (e.clientX - rect.left)/config.zoom_factor;
+		radar_y = (e.clientY - rect.top)/config.zoom_factor;
+		
+		map_x = ingame_x_coord(radar_x);
+		map_y = ingame_y_coord(radar_y);
+		
+		update_highlighted_grenade(map_x, map_y);
+		document.getElementById("mouse_position_display").innerHTML = " x: " + map_x + " | y: " + map_y;
+		
+		var grenade = res.maps[config.map_name].grenades[config.highlighted_grenade_i];
+		
+		if(config.highlighted_grenade_i == -1) {
+			document.getElementById("mouse_info_display").innerHTML = "";
+
+		} else {
+			str = ""
+			if(grenade.type)	{str += grenade.type + " ";}
+			if(grenade.name)	{str += "to " + grenade.name + " ";}
+			if(grenade.side)	{str += "[as " + grenade.side + "]";}
+			str += "\n"
+			if(grenade.difficulty){
+				str += "difficulty: " + grenade.difficulty + " ";
+			}
+			if(grenade.utility){
+				str += "utility: " + grenade.utility;
+			}
+			
+			document.getElementById("mouse_info_display").innerHTML = str;
+		}
+	}
+	
+	document.getElementById("radar").onmousedown = function(e){
+		var rect = this.getBoundingClientRect()
+		
+		radar_x = (e.clientX - rect.left)/config.zoom_factor;
+		radar_y = (e.clientY - rect.top)/config.zoom_factor;
+		
+		map_x = ingame_x_coord(radar_x);
+		map_y = ingame_y_coord(radar_y);
+		
+		document.getElementById("click_position_display").innerHTML = " x: " + map_x + " | y: " + map_y;
+		document.getElementById("radar").onmousemove(e);
+		
+		if(config.highlighted_grenade_i != -1){
+			show_grenade_info(config.highlighted_grenade_i);
+		}
+	}
+
+	
+	// Define After Crucial Load Functions
+	function after_crucial_object_load(){
+		config.loaded_crucial_objects++;
+		console.log(config.loaded_crucial_objects + "/" + config.num_crucial_objects + " | " + this.src)
+
+		if(config.loaded_crucial_objects == config.num_crucial_objects){
+			change_zoom(config.zoom_factor);
+			draw_radar();
+		}
+	}
+	
+	function on_crucial_object_error(){
+		window.alert("Important Resource could not be loaded: " + this.src);
+		return false;
+	}
+	
+	// Draw Frunctions
+	function draw_icon(icon_name, x, y, rotation = 0){
+		var img = res.images[icon_name];
+		var w = img.width / config.scale * config.zoom_factor;
+		var h = img.width / config.scale * config.zoom_factor;
+		var mid_x = radar_x_coord(x)*config.zoom_factor;
+		var mid_y = radar_y_coord(y)*config.zoom_factor;
+		
+		var radar = document.getElementById("radar").getContext("2d");
+		
+		if(rotation == 0){
+			radar.drawImage(img, mid_x-w/2, mid_y-h/2, w, h);
+		} else {
+			radar.save();
+			radar.translate(mid_x, mid_y);
+			radar.rotate(-rotation*Math.PI/180);
+			radar.drawImage(img, -w/2, -h/2, w, h);
+			radar.restore();
+		}
+	}
+	
+	function draw_map(){
+		var map_name = config.map_name;
+		if(config.use_lower){
+			map_name += "_lower";
+		}
+		var img = res.images[map_name];
+		document.getElementById("radar").getContext("2d").drawImage(img, 0, 0, img.width * config.zoom_factor, img.height * config.zoom_factor);
+	
+		//draw map symbols
+		var map = res.maps[config.map_name];
+		var radar = document.getElementById("radar");
+		
+		if("CTSpawn_x" in map && "CTSpawn_y" in map){
+			var x = ingame_x_coord(map.CTSpawn_x * radar.width / config.zoom_factor);
+			var y = ingame_y_coord(map.CTSpawn_y * radar.height / config.zoom_factor);
+			draw_icon("ct_spawn", x, y);
+		}
+		if("TSpawn_x" in map && "TSpawn_y" in map){
+			var x = ingame_x_coord(map.TSpawn_x * radar.width / config.zoom_factor);
+			var y = ingame_y_coord(map.TSpawn_y * radar.height / config.zoom_factor);
+			draw_icon("t_spawn", x, y);
+		}
+		if("bombA_x" in map && "bombA_y" in map){
+			var x = ingame_x_coord(map.bombA_x * radar.width / config.zoom_factor);
+			var y = ingame_y_coord(map.bombA_y * radar.height / config.zoom_factor);
+			draw_icon("bomb_a", x, y);
+		}
+		if("bombB_x" in map && "bombB_y" in map){
+			var x = ingame_x_coord(map.bombB_x * radar.width / config.zoom_factor);
+			var y = ingame_y_coord(map.bombB_y * radar.height / config.zoom_factor);
+			draw_icon("bomb_b", x, y);
+		}
+	}
+	
+	function draw_grenades(){
+		for(grenade_i in res.maps[config.map_name].grenades){
+			var grenade = res.maps[config.map_name].grenades[grenade_i];
+						
+			if(grenade_i == config.highlighted_grenade_i){
+				draw_icon(grenade.type + "_highlighted", grenade.x, grenade.y);
+			} else {
+				draw_icon(grenade.type, grenade.x, grenade.y);
+			}
+		}
+	}
+	
+	function draw_highlighted_grenade_sources(){
+		if(config.highlighted_grenade_i == -1){
+			return;
+		}
+		
+		var grenade = res.maps[config.map_name].grenades[config.highlighted_grenade_i];
+		
+		for(src_i in grenade.srcs){
+			var source = grenade.srcs[src_i];
+			if("x" in source && "y" in source){
+				var x = source.x;
+				var y = source.y;
+				var angle = source.angle;
+				if(!("angle" in source)){
+					angle = 0;
+				}
+				
+				draw_icon("source", x, y, angle);
+			}
+		}
+		
+	}
+	
+	function draw_radar(){
+		draw_map();
+		draw_grenades();
+		draw_highlighted_grenade_sources();
+	}
+
+	
+	// Math Utility
+	function radar_x_coord(ingame_x){
+		return Math.round( (ingame_x - config.pos_x) / config.scale );
+	}
+	function radar_y_coord(ingame_y){
+		return - Math.round( (ingame_y - config.pos_y) / config.scale );
+	}
+	function ingame_x_coord(radar_x){
+		return Math.round( (radar_x * config.scale) + config.pos_x );
+	}
+	function ingame_y_coord(radar_y){
+		return Math.round( (-radar_y * config.scale) + config.pos_y );
+	}
+	
+	// Grenade Info Functions
+	function update_highlighted_grenade(map_x, map_y){
+		
+		var best_dist_radius_ratio = Infinity;
+		var nearest_grenade_i = -1;
+				
+		//window.alert(res.maps[config.map_name].grenades)
+		for(grenade_i in res.maps[config.map_name].grenades){
+			var grenade = res.maps[config.map_name].grenades[grenade_i];
+						
+			var radius = res.images[grenade.type].width / 2;
+			var dx = grenade.x - map_x;
+			var dy = grenade.y - map_y;
+			var dist = Math.sqrt(dx*dx + dy*dy);
+			var dist_radius_ratio = dist / radius;
+
+			if(dist_radius_ratio < best_dist_radius_ratio & dist_radius_ratio <= 1){
+				best_dist_radius_ratio = dist_radius_ratio;
+				nearest_grenade_i = grenade_i;
+			}
+		}
+		
+		if(config.highlighted_grenade_i == nearest_grenade_i){
+			return;
+		}
+		
+		config.highlighted_grenade_i = nearest_grenade_i;
+		draw_radar()
+	}	
+	
+	function show_grenade_info(grenade_i){
+		// make overlay visible
+		document.getElementById("grenade_info_overlay").style.display = "block";
+		
+		// insert sources names
+		var grenade = res.maps[config.map_name].grenades[config.highlighted_grenade_i];
+		
+		var tbl = document.getElementById("grenade_sources_overview");
+		for(src_i in grenade.srcs){
+			var txt = document.createElement("span");
+			txt.style.cursor = "pointer";
+			txt.style.color = "white";
+			txt.setAttribute("name","source_link");
+			
+			txt.innerHTML = "FROM<br>" + grenade.srcs[src_i].name.replace(/_/g, " ").toUpperCase();
+			
+			txt.src_i = src_i;
+			txt.onclick = function(){show_grenade_source_info(this.src_i);}
+			
+			var td = document.createElement("td");
+			td.appendChild(txt);
+			
+			row = tbl.insertRow(tbl.rows.length);
+			row.appendChild(td);
+		}
+		var src_i = 1;
+		
+		show_grenade_source_info(0);
+	}
+	
+	function hide_grenade_info(){
+		// make overlay disappear
+		document.getElementById("grenade_info_overlay").style.display = "none";
+		
+		// remove all source names
+		var tbl = document.getElementById("grenade_sources_overview")
+		while (tbl.firstChild) {
+			tbl.removeChild(tbl.firstChild);
+		}
+		
+		config.highlighted_grenade_i = -1;
+		draw_radar();
+	}
+	
+	function show_grenade_source_info(src_i){	
+	
+		// Highlight correct source_i link on sidebar
+		var sources = document.getElementsByName("source_link");
+		for(si = 0; si < sources.length; si++){
+			sources[si].style.color = "white";
+		}
+		sources[src_i].style.color = "#f4b042";
+	
+		// Remove all existing pics
+		var overlay_pics = document.getElementById("overlay_content");
+		while (overlay_pics.firstChild) {
+			overlay_pics.removeChild(overlay_pics.firstChild);
+		}
+		
+		// Add pics
+		var grenade = res.maps[config.map_name].grenades[config.highlighted_grenade_i];
+		if(src_i >= grenade.srcs.length){return;}
+		
+		var gi = document.getElementById("grenade_info").getBoundingClientRect();
+		var gis = document.getElementById("grenade_sources_overview").getBoundingClientRect();
+		
+		var w = Math.floor(gi.width - gis.width)		
+		var h = w / 192 * 108;
+		
+		config.grenade_source_pic_w = w;
+		config.grenade_source_pic_h = h;
+		
+		config.src_i = src_i;
+		config.grenade_source_info_pic_i = 1;
+		grenade_source_load_metatext();
+		grenade_source_load_next_pic();
+	}
+	
+	function grenade_source_load_next_pic(){
+		var overlay_pics = document.getElementById("overlay_content");
+		var grenade = res.maps[config.map_name].grenades[config.highlighted_grenade_i];
+		var source = grenade.srcs[config.src_i];
+		
+		var pic_i = config.grenade_source_info_pic_i;
+		config.grenade_source_info_pic_i++;
+
+		var img = new Image();
+
+		img.width = config.grenade_source_pic_w;
+		img.height = config.grenade_source_pic_h;
+		
+		img.onerror = grenade_source_del_last_pic;
+		img.onload = grenade_source_load_next_pic;
+
+		img.onclick = function(){
+			open(this.src, "_blank");
+		}
+		
+		img.style = "cursor: crosshair";
+		
+		img.src = "maps/" + config.map_name + "/"
+				+ grenade.type + "_to_" + grenade.name + "_from_" + source.name + "/"
+				+ pic_i + ".jpg";
+		
+		overlay_pics.appendChild(img);
+	}
+	
+	function grenade_source_del_last_pic(){
+		console.log("cannot load " + this.src);
+		var overlay_pics = document.getElementById("overlay_content");
+		overlay_pics.removeChild(overlay_pics.lastChild);
+	}
+	
+	function grenade_source_load_metatext()
+	{
+		var overlay_pics = document.getElementById("overlay_content");
+
+		metatxt = document.createElement("span");
+		metatxt.style.color = "white";
+		metatxt.style.backgroundColor = "grey";
+		
+		grenade_comment = res.maps[config.map_name].grenades[config.highlighted_grenade_i].comment;
+		source_comment = res.maps[config.map_name].grenades[config.highlighted_grenade_i].srcs[config.src_i].comment;
+		
+		metatxt.innerHTML = "Grenade Info: ";
+		if(grenade_comment){
+			metatxt.innerHTML += "<font color = '#122442'>" + grenade_comment + "</font>";
+		} else {
+			metatxt.innerHTML += "None";
+		}
+		metatxt.innerHTML += "<br>Throw Instructions: ";	
+		if(source_comment){
+			metatxt.innerHTML += "<font color = '#2e4c7c'>" + source_comment + "</font>";
+		} else {
+			metatxt.innerHTML += "None";
+		}
+		
+		overlay_pics.appendChild(metatxt);
+	}
+	
+// ctrl	
+window.onload = function(){
+	change_map("de_dust2");
+	after_crucial_object_load();
+}
+
+document.onkeydown = function(e) {
+	e = (e||window.event);  
+
+	if (e.keyCode == 27) {
+        if(document.getElementById("grenade_info_overlay").style.display == "block"){
+			try{e.preventDefault();}		//Non-IE
+			catch(x){e.returnValue=false;}	//IE
+			
+			hide_grenade_info();
+		}
+	};
+}
+
+</script>
+
+</body>
+
+</html>
